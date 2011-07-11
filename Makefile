@@ -11,7 +11,7 @@ CORE_INCLUDE_DIRS = $(shell find $(LIBS_DIR)/openFrameworks -type d)
 INCLUDE_DIRS = $(shell find $(LIBS_DIR)/*/include -type d) 
 INCLUDES = $(addprefix -idirafter ,$(INCLUDE_DIRS) $(CORE_INCLUDE_DIRS))
 
-SRC = $(shell find $(LIBS_DIR)/openFrameworks -name "*.cpp" -and -not -iname "*gst*" )
+SRC = $(shell find $(LIBS_DIR)/openFrameworks -name "*.cpp" -and -not -iname "*gst*" -and -not -iname "*openal*" )
 FRAMEWORKS = $(addprefix -framework ,OpenGL Glut QuickTime CoreAudio Carbon)
 LIBRARIES = $(shell find $(LIBS_DIR)/*/lib/osx -name "*.a")
 
