@@ -311,7 +311,9 @@ void ofAppGlutWindow::initializeWindow(){
 	glutEntryFunc(entry_cb);
 
 #ifdef TARGET_OSX
-	glutDragEventFunc(dragEvent);
+    #ifndef TARGET_ZAJAL
+  	  glutDragEventFunc(dragEvent);
+	  #endif
 #endif
 
     nFramesSinceWindowResized = 0;
