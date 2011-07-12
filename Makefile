@@ -8,12 +8,12 @@ CXXFLAGS = -arch i386 -g
 ### openFrameworks
 DEFINES = -DOF_SOUND_PLAYER_QUICKTIME -DTARGET_ZAJAL
 CORE_INCLUDE_DIRS = $(shell find $(LIBS_DIR)/openFrameworks -type d) 
-INCLUDE_DIRS = $(shell find $(LIBS_DIR)/*/include -type d) 
+INCLUDE_DIRS = $(shell find $(LIBS_DIR)/*/include -type d -and -not -iname "*fmod*") 
 INCLUDES = $(addprefix -idirafter ,$(INCLUDE_DIRS) $(CORE_INCLUDE_DIRS))
 
-SRC = $(shell find $(LIBS_DIR)/openFrameworks -name "*.cpp" -and -not -iname "*gst*" -and -not -iname "*openal*" )
+SRC = $(shell find $(LIBS_DIR)/openFrameworks -name "*.cpp" -and -not -iname "*gst*" -and -not -iname "*fmod*" -and -not -iname "*openal*" )
 FRAMEWORKS = $(addprefix -framework ,OpenGL Glut QuickTime CoreAudio Carbon)
-LIBRARIES = $(shell find $(LIBS_DIR)/*/lib/osx -name "*.a")
+LIBRARIES = $(shell find $(LIBS_DIR)/*/lib/osx -name "*.a" -and -not -iname "*openFrameworks*")
 
 .PHONY: all clean
 
