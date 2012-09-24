@@ -2,15 +2,19 @@
 
 #include "ofConstants.h"
 #ifndef TARGET_ANDROID
-#include <gst/gst.h>
-#include <gst/app/gstappsink.h>
 #include "ofConstants.h"
 #include "ofBaseTypes.h"
 #include "ofPixels.h"
 #include "ofTypes.h"
 #include "ofEvents.h"
 
+#define GST_DISABLE_DEPRECATED
+#include <gst/gstpad.h>
+
 class ofGstAppSink;
+typedef struct _GstElement GstElement;
+typedef struct _GstBuffer GstBuffer;
+typedef struct _GstMessage GstMessage;
 
 //-------------------------------------------------
 //----------------------------------------- ofGstUtils
@@ -25,7 +29,7 @@ public:
 	bool 	setPipelineWithSink(GstElement * pipeline, GstElement * sink, bool isStream=false);
 
 	void 	play();
-	void 	stop(){setPaused(true);}
+	void 	stop();
 	void 	setPaused(bool bPause);
 	bool 	isPaused(){return bPaused;}
 	bool 	isLoaded(){return bLoaded;}
@@ -34,11 +38,11 @@ public:
 	float	getPosition();
 	float 	getSpeed();
 	float 	getDuration();
-	guint64 getDurationNanos();
+	int64_t  getDurationNanos();
 	bool  	getIsMovieDone();
 
 	void 	setPosition(float pct);
-	void 	setVolume(int volume);
+	void 	setVolume(float volume);
 	void 	setLoopState(ofLoopType state);
 	int		getLoopState(){return loopMode;}
 	void 	setSpeed(float speed);
@@ -48,16 +52,22 @@ public:
 
 	GstElement 	* getPipeline();
 	GstElement 	* getSink();
+	unsigned long getMinLatencyNanos();
+	unsigned long getMaxLatencyNanos();
 
 	virtual void close();
 
 	void setSinkListener(ofGstAppSink * appsink);
 
-protected:
 	// callbacks to get called from gstreamer
 	virtual GstFlowReturn preroll_cb(GstBuffer * buffer);
 	virtual GstFlowReturn buffer_cb(GstBuffer * buffer);
 	virtual void 		  eos_cb();
+
+	static void startGstMainLoop();
+protected:
+	ofGstAppSink * 		appsink;
+	bool				isStream;
 
 private:
 	void 				gstHandleMessage();
@@ -73,19 +83,17 @@ private:
 
 	GstElement  *		gstSink;
 	GstElement 	*		gstPipeline;
-	ofGstAppSink * 		appsink;
 
 	bool				posChangingPaused;
 	int					pipelineState;
 	float				speed;
-	gint64				durationNanos;
+	int64_t				durationNanos;
 	bool				isAppSink;
-	bool				isStream;
 
 	// the gst callbacks need to be friended to be able to call us
-	friend GstFlowReturn on_new_buffer_from_source (GstAppSink * elt, void * data);
-	friend GstFlowReturn on_new_preroll_from_source (GstAppSink * elt, void * data);
-	friend void on_eos_from_source (GstAppSink * elt, void * data);
+	//friend GstFlowReturn on_new_buffer_from_source (GstAppSink * elt, void * data);
+	//friend GstFlowReturn on_new_preroll_from_source (GstAppSink * elt, void * data);
+	//friend void on_eos_from_source (GstAppSink * elt, void * data);
 
 };
 
@@ -136,6 +144,7 @@ private:
 	bool			bHavePixelsChanged;
 	bool			bBackPixelsChanged;
 	ofMutex			mutex;
+	GstBuffer * 	buffer, *prevBuffer;
 };
 
 

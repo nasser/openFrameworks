@@ -40,7 +40,9 @@ static ofTTFCharacter makeContoursForCharacter(FT_Face &face){
 			}
 			int endPos = face->glyph->outline.contours[k]+1;
 
-			if( printVectorInfo )printf("--NEW CONTOUR\n\n");
+			if(printVectorInfo){
+				ofLog(OF_LOG_NOTICE, "--NEW CONTOUR\n");
+			}
 
 			//vector <ofPoint> testOutline;
 			ofPoint lastPoint;
@@ -49,15 +51,21 @@ static ofTTFCharacter makeContoursForCharacter(FT_Face &face){
 
 				if( FT_CURVE_TAG(tags[j]) == FT_CURVE_TAG_ON ){
 					lastPoint.set((float)vec[j].x, (float)-vec[j].y, 0);
-					if( printVectorInfo )printf("flag[%i] is set to 1 - regular point - %f %f \n", j, lastPoint.x, lastPoint.y);
+					if(printVectorInfo){
+						ofLog(OF_LOG_NOTICE, "flag[%i] is set to 1 - regular point - %f %f", j, lastPoint.x, lastPoint.y);
+					}
 					//testOutline.push_back(lastPoint);
 					charOutlines.lineTo(lastPoint/64);
 
 				}else{
-					if( printVectorInfo )printf("flag[%i] is set to 0 - control point \n", j);
+					if(printVectorInfo){
+						ofLog(OF_LOG_NOTICE, "flag[%i] is set to 0 - control point", j);
+					}
 
 					if( FT_CURVE_TAG(tags[j]) == FT_CURVE_TAG_CUBIC ){
-						if( printVectorInfo )printf("- bit 2 is set to 2 - CUBIC\n");
+						if(printVectorInfo){
+							ofLog(OF_LOG_NOTICE, "- bit 2 is set to 2 - CUBIC");
+						}
 
 						int prevPoint = j-1;
 						if( j == 0){
@@ -87,8 +95,10 @@ static ofTTFCharacter makeContoursForCharacter(FT_Face &face){
 
 						ofPoint conicPoint( (float)vec[j].x,  -(float)vec[j].y );
 
-						if( printVectorInfo )printf("- bit 2 is set to 0 - conic- \n");
-						if( printVectorInfo )printf("--- conicPoint point is %f %f \n", conicPoint.x, conicPoint.y);
+						if(printVectorInfo){
+							ofLog(OF_LOG_NOTICE, "- bit 2 is set to 0 - conic- ");
+							ofLog(OF_LOG_NOTICE, "--- conicPoint point is %f %f", conicPoint.x, conicPoint.y);
+						}
 
 						//If the first point is connic and the last point is connic then we need to create a virutal point which acts as a wrap around
 						if( j == startPos ){
@@ -98,8 +108,10 @@ static ofTTFCharacter makeContoursForCharacter(FT_Face &face){
 								ofPoint lastConnic((float)vec[endPos - 1].x, (float)-vec[endPos - 1].y);
 								lastPoint = (conicPoint + lastConnic) / 2;
 
-								if( printVectorInfo )	printf("NEED TO MIX WITH LAST\n");
-								if( printVectorInfo )printf("last is %f %f \n", lastPoint.x, lastPoint.y);
+								if(printVectorInfo){
+									ofLog(OF_LOG_NOTICE, "NEED TO MIX WITH LAST");
+									ofLog(OF_LOG_NOTICE, "last is %f %f", lastPoint.x, lastPoint.y);
+								}
 							}
 						}
 
@@ -112,16 +124,22 @@ static ofTTFCharacter makeContoursForCharacter(FT_Face &face){
 
 						ofPoint nextPoint( (float)vec[nextIndex].x,  -(float)vec[nextIndex].y );
 
-						if( printVectorInfo )printf("--- last point is %f %f \n", lastPoint.x, lastPoint.y);
+						if(printVectorInfo){
+							ofLog(OF_LOG_NOTICE, "--- last point is %f %f", lastPoint.x, lastPoint.y);
+						}
 
 						bool nextIsConnic = (  FT_CURVE_TAG( tags[nextIndex] ) != FT_CURVE_TAG_ON ) && ( FT_CURVE_TAG( tags[nextIndex]) != FT_CURVE_TAG_CUBIC );
 
 						//create a 'virtual on point' if we have two connic points
 						if( nextIsConnic ){
 							nextPoint = (conicPoint + nextPoint) / 2;
-							if( printVectorInfo )printf("|_______ double connic!\n");
+							if(printVectorInfo){
+								ofLog(OF_LOG_NOTICE, "|_______ double connic!");
+							}
 						}
-						if( printVectorInfo )printf("--- next point is %f %f \n", nextPoint.x, nextPoint.y);
+						if(printVectorInfo){
+							ofLog(OF_LOG_NOTICE, "--- next point is %f %f", nextPoint.x, nextPoint.y);
+						}
 
 						//quad_bezier(testOutline, lastPoint.x, lastPoint.y, conicPoint.x, conicPoint.y, nextPoint.x, nextPoint.y, 8);
 						charOutlines.quadBezierTo(lastPoint.x/64, lastPoint.y/64, conicPoint.x/64, conicPoint.y/64, nextPoint.x/64, nextPoint.y/64);
@@ -140,18 +158,23 @@ static ofTTFCharacter makeContoursForCharacter(FT_Face &face){
 	return charOutlines;
 }
 
-#ifdef TARGET_ANDROID
+#if defined(TARGET_ANDROID) || defined(TARGET_OF_IPHONE)
 	#include <set>
-	set<ofTrueTypeFont*> all_fonts;
+	static set<ofTrueTypeFont*> & all_fonts(){
+		static set<ofTrueTypeFont*> *all_fonts = new set<ofTrueTypeFont*>;
+		return *all_fonts;
+	}
+
 	void ofUnloadAllFontTextures(){
 		set<ofTrueTypeFont*>::iterator it;
-		for(it=all_fonts.begin();it!=all_fonts.end();it++){
+		for(it=all_fonts().begin();it!=all_fonts().end();it++){
 			(*it)->unloadTextures();
 		}
 	}
+
 	void ofReloadAllFontTextures(){
 		set<ofTrueTypeFont*>::iterator it;
-		for(it=all_fonts.begin();it!=all_fonts.end();it++){
+		for(it=all_fonts().begin();it!=all_fonts().end();it++){
 			(*it)->reloadTextures();
 		}
 	}
@@ -167,8 +190,8 @@ bool compare_cps(const charProps & c1, const charProps & c2){
 ofTrueTypeFont::ofTrueTypeFont(){
 	bLoadedOk		= false;
 	bMakeContours	= false;
-	#ifdef TARGET_ANDROID
-		all_fonts.insert(this);
+	#if defined(TARGET_ANDROID) || defined(TARGET_OF_IPHONE)
+		all_fonts().insert(this);
 	#endif
 	//cps				= NULL;
 	letterSpacing = 1;
@@ -191,8 +214,8 @@ ofTrueTypeFont::~ofTrueTypeFont(){
 		unloadTextures();
 	}
 
-	#ifdef TARGET_ANDROID
-		all_fonts.erase(this);
+	#if defined(TARGET_ANDROID) || defined(TARGET_OF_IPHONE)
+		all_fonts().erase(this);
 	#endif
 }
 
@@ -204,13 +227,11 @@ void ofTrueTypeFont::unloadTextures(){
 }
 
 void ofTrueTypeFont::reloadTextures(){
-	loadFont(filename, fontSize, bAntiAliased, bFullCharacterSet, false);
+	loadFont(filename, fontSize, bAntiAliased, bFullCharacterSet, bMakeContours, simplifyAmt, dpi);
 }
 
 //-----------------------------------------------------------
-bool ofTrueTypeFont::loadFont(string filename, int fontsize, bool _bAntiAliased, bool _bFullCharacterSet, bool makeContours, float simplifyAmt, int dpi) {
-
-	bMakeContours = makeContours;
+bool ofTrueTypeFont::loadFont(string _filename, int _fontSize, bool _bAntiAliased, bool _bFullCharacterSet, bool _makeContours, float _simplifyAmt, int _dpi) {
 
 	//------------------------------------------------
 	if (bLoadedOk == true){
@@ -220,31 +241,45 @@ bool ofTrueTypeFont::loadFont(string filename, int fontsize, bool _bAntiAliased,
 	}
 	//------------------------------------------------
 
-	if( dpi == 0 ){
-		dpi = ttfGlobalDpi;
+	if( _dpi == 0 ){
+		_dpi = ttfGlobalDpi;
 	}
 
-	filename = ofToDataPath(filename);
+	filename = ofToDataPath(_filename,true);
 
 	bLoadedOk 			= false;
 	bAntiAliased 		= _bAntiAliased;
 	bFullCharacterSet 	= _bFullCharacterSet;
-	fontSize			= fontsize;
+	fontSize			= _fontSize;
+	bMakeContours 		= _makeContours;
+	simplifyAmt			= _simplifyAmt;
+	dpi 				= _dpi;
 
 	//--------------- load the library and typeface
-	FT_Library library;
-	if (FT_Init_FreeType( &library )){
-		ofLog(OF_LOG_ERROR," PROBLEM WITH FT lib");
+	
+    FT_Error err;
+    
+    FT_Library library;
+    
+    err = FT_Init_FreeType( &library );
+    if (err){
+		ofLog(OF_LOG_ERROR,"ofTrueTypeFont::loadFont - Error initializing freetype lib: FT_Error = %d", err);
 		return false;
 	}
 
 	FT_Face face;
-	if (FT_New_Face( library, filename.c_str(), 0, &face )) {
+    
+    err = FT_New_Face( library, filename.c_str(), 0, &face );
+	if (err) {
+        // simple error table in lieu of full table (see fterrors.h)
+        string errorString = "unknown freetype";
+        if(err == 1) errorString = "INVALID FILENAME";
+        ofLog(OF_LOG_ERROR,"ofTrueTypeFont::loadFont - %s: %s: FT_Error = %d", errorString.c_str(), filename.c_str(), err);
 		return false;
 	}
 
-	FT_Set_Char_Size( face, fontsize << 6, fontsize << 6, dpi, dpi);
-	lineHeight = fontsize * 1.43f;
+	FT_Set_Char_Size( face, fontSize << 6, fontSize << 6, dpi, dpi);
+	lineHeight = fontSize * 1.43f;
 
 	//------------------------------------------------------
 	//kerning would be great to support:
@@ -269,8 +304,10 @@ bool ofTrueTypeFont::loadFont(string filename, int fontsize, bool _bAntiAliased,
 	for (int i = 0 ; i < nCharacters; i++){
 
 		//------------------------------------------ anti aliased or not:
-		if(FT_Load_Glyph( face, FT_Get_Char_Index( face, (unsigned char)(i+NUM_CHARACTER_TO_START) ), FT_LOAD_DEFAULT )){
-			ofLog(OF_LOG_ERROR,"error with FT_Load_Glyph %i", i);
+		err = FT_Load_Glyph( face, FT_Get_Char_Index( face, (unsigned char)(i+NUM_CHARACTER_TO_START) ), FT_LOAD_DEFAULT );
+        if(err){
+			ofLog(OF_LOG_ERROR,"ofTrueTypeFont::loadFont - Error with FT_Load_Glyph %i: FT_Error = %d", i, err);
+                        
 		}
 
 		if (bAntiAliased == true) FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
@@ -294,7 +331,9 @@ bool ofTrueTypeFont::loadFont(string filename, int fontsize, bool _bAntiAliased,
 
 
 		if(bMakeContours){
-			if( printVectorInfo )printf("\n\ncharacter %c: \n", char( i+NUM_CHARACTER_TO_START ) );
+			if(printVectorInfo){
+				ofLog(OF_LOG_NOTICE, "\n\ncharacter %c:", char(i+NUM_CHARACTER_TO_START));
+			}
 
 			//int character = i + NUM_CHARACTER_TO_START;
 			charOutlines[i] = makeContoursForCharacter( face );
@@ -446,7 +485,7 @@ bool ofTrueTypeFont::loadFont(string filename, int fontsize, bool _bAntiAliased,
 
 	texAtlas.allocate(atlasPixels.getWidth(),atlasPixels.getHeight(),GL_LUMINANCE_ALPHA,false);
 
-	if(bAntiAliased && fontsize>20){
+	if(bAntiAliased && fontSize>20){
 		texAtlas.setTextureMinMagFilter(GL_LINEAR,GL_LINEAR);
 	}else{
 		texAtlas.setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);
@@ -474,6 +513,11 @@ bool ofTrueTypeFont::isAntiAliased() {
 //-----------------------------------------------------------
 bool ofTrueTypeFont::hasFullCharacterSet() {
 	return bFullCharacterSet;
+}
+
+//-----------------------------------------------------------
+int ofTrueTypeFont::getSize() {
+	return fontSize;
 }
 
 //-----------------------------------------------------------
@@ -581,7 +625,7 @@ vector<ofTTFCharacter> ofTrueTypeFont::getStringAsPoints(string str){
 		if (cy < nCharacters){ 			// full char set or not?
 		  if (str[index] == '\n') {
 
-				Y += (float) lineHeight;
+				Y += lineHeight;
 				X = 0 ; //reset X Pos back to zero
 
 		  }else if (str[index] == ' ') {
@@ -652,7 +696,7 @@ ofRectangle ofTrueTypeFont::getStringBoundingBox(string c, float x, float y){
 		int cy = (unsigned char)c[index] - NUM_CHARACTER_TO_START;
  	    if (cy < nCharacters){ 			// full char set or not?
 	       if (c[index] == '\n') {
-				yoffset += (int)lineHeight;
+				yoffset += lineHeight;
 				xoffset = 0 ; //reset X Pos back to zero
 	      } else if (c[index] == ' ') {
 	     		int cy = (int)'p' - NUM_CHARACTER_TO_START;
@@ -709,7 +753,7 @@ void ofTrueTypeFont::drawString(string c, float x, float y) {
 	texAtlas.draw(0,0);*/
 
     if (!bLoadedOk){
-    	ofLog(OF_LOG_ERROR,"Error : font not allocated -- line %d in %s", __LINE__,__FILE__);
+    	ofLog(OF_LOG_ERROR,"ofTrueTypeFont::drawString - Error : font not allocated -- line %d in %s", __LINE__,__FILE__);
     	return;
     };
 
@@ -729,7 +773,7 @@ void ofTrueTypeFont::drawString(string c, float x, float y) {
 		if (cy < nCharacters){ 			// full char set or not?
 		  if (c[index] == '\n') {
 
-				Y += (float) lineHeight;
+				Y += lineHeight;
 				X = x ; //reset X Pos back to zero
 
 		  }else if (c[index] == ' ') {
@@ -805,13 +849,13 @@ void ofTrueTypeFont::unbind(){
 void ofTrueTypeFont::drawStringAsShapes(string c, float x, float y) {
 
     if (!bLoadedOk){
-    	ofLog(OF_LOG_ERROR,"Error : font not allocated -- line %d in %s", __LINE__,__FILE__);
+    	ofLog(OF_LOG_ERROR,"ofTrueTypeFont::drawStringAsShapes - Error : font not allocated -- line %d in %s", __LINE__,__FILE__);
     	return;
     };
 
 	//----------------------- error checking
 	if (!bMakeContours){
-		ofLog(OF_LOG_ERROR,"Error : contours not created for this font - call loadFont with makeContours set to true");
+		ofLog(OF_LOG_ERROR,"ofTrueTypeFont::drawStringAsShapes - Error : contours not created for this font - call loadFont with makeContours set to true");
 		return;
 	}
 

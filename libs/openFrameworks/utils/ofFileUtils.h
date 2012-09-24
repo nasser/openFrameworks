@@ -11,14 +11,17 @@ class ofBuffer{
 	
 public:
 	ofBuffer();
-	ofBuffer(const char * buffer, int size);
+	ofBuffer(const char * buffer, unsigned int size);
+	ofBuffer(const string & text);
 	ofBuffer(istream & stream);
 	ofBuffer(const ofBuffer & buffer_);
 
 	~ofBuffer();
 
-	void set(const char * _buffer, int _size);
+	void set(const char * _buffer, unsigned int _size);
+	void set(const string & text);
 	bool set(istream & stream);
+	void append(const char * _buffer, unsigned int _size);
 
 	bool writeTo(ostream & stream) const;
 
@@ -31,13 +34,14 @@ public:
 
 	string getText() const;
 	operator string() const;  // cast to string, to use a buffer as a string
+	ofBuffer & operator=(const string & text);
 
 	long size() const;
-
 	string getNextLine();
-	string getFirstLine();
+    string getFirstLine();
 	bool isLastLine();
-
+    void resetLineReader();
+    
 	friend ostream & operator<<(ostream & ostr, const ofBuffer & buf);
 	friend istream & operator>>(istream & istr, ofBuffer & buf);
 
@@ -72,7 +76,12 @@ public:
 
 	static string getEnclosingDirectory(string filePath, bool bRelativeToData = true);
 	static string getCurrentWorkingDirectory();
+	static string join(string path1,string path2);
 	
+	static string getCurrentExePath();
+	static string getCurrentExeDir();
+
+	static string getUserHomeDir();
 };
 
 class ofFile: public fstream{
@@ -195,6 +204,7 @@ public:
 
 	bool exists() const;
 	string path() const;
+	string getAbsolutePath() const;
 
 	bool canRead() const;
 	bool canWrite() const;
@@ -222,6 +232,7 @@ public:
 	int listDir(string path);
 	int listDir();
 
+	string getOriginalDirectory();
 	string getName(unsigned int position); // e.g., "image.png"
 	string getPath(unsigned int position);
 	ofFile getFile(unsigned int position, ofFile::Mode mode=ofFile::Reference, bool binary=false);

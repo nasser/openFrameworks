@@ -1,5 +1,6 @@
 #include "ofRtAudioSoundStream.h"
 
+#ifdef OF_SOUNDSTREAM_RTAUDIO
 #include "ofSoundStream.h"
 #include "ofMath.h"
 #include "ofUtils.h"
@@ -13,7 +14,8 @@ int receiveAudioBufferAndCallSimpleApp(void *outputBuffer, void *inputBuffer, un
 
 //------------------------------------------------------------------------------
 ofRtAudioSoundStream::ofRtAudioSoundStream(){
-	deviceID		= -1;
+	outDeviceID		= -1;
+    inDeviceID		= -1;
 	soundOutputPtr	= NULL;
 	soundInputPtr	= NULL;
 	tickCount= 0;
@@ -53,7 +55,16 @@ void ofRtAudioSoundStream::listDevices(){
 
 //------------------------------------------------------------------------------
 void ofRtAudioSoundStream::setDeviceID(int _deviceID){
-	deviceID = _deviceID;
+	//deviceID = _deviceID;
+    inDeviceID = outDeviceID = _deviceID;
+}
+
+void ofRtAudioSoundStream::setInDeviceID(int _deviceID){
+	inDeviceID = _deviceID;
+}
+
+void ofRtAudioSoundStream::setOutDeviceID(int _deviceID){
+	outDeviceID = _deviceID;
 }
 
 //------------------------------------------------------------------------------
@@ -89,8 +100,8 @@ bool ofRtAudioSoundStream::setup(int outChannels, int inChannels, int _sampleRat
 	RtAudio::StreamParameters outputParameters;
 	RtAudio::StreamParameters inputParameters;
 	if(nInputChannels>0){
-		if( deviceID >= 0 ){
-			inputParameters.deviceId = deviceID;
+		if( inDeviceID >= 0 ){
+			inputParameters.deviceId = inDeviceID;
 		}else{
 			inputParameters.deviceId = audio->getDefaultInputDevice();
 		}
@@ -98,8 +109,8 @@ bool ofRtAudioSoundStream::setup(int outChannels, int inChannels, int _sampleRat
 	}
 
 	if(nOutputChannels>0){
-		if( deviceID >= 0 ){
-			outputParameters.deviceId = deviceID;
+		if( outDeviceID >= 0 ){
+			outputParameters.deviceId = outDeviceID;
 		}else{
 			outputParameters.deviceId = audio->getDefaultOutputDevice();
 		}
@@ -208,7 +219,7 @@ int ofRtAudioSoundStream::rtAudioCallback(void *outputBuffer, void *inputBuffer,
 
 	if(nInputChannels > 0){
 		if( rtStreamPtr->soundInputPtr != NULL ){
-			rtStreamPtr->soundInputPtr->audioIn((float*)inputBuffer, bufferSize, nInputChannels, rtStreamPtr->deviceID, rtStreamPtr->tickCount);
+			rtStreamPtr->soundInputPtr->audioIn((float*)inputBuffer, bufferSize, nInputChannels, rtStreamPtr->inDeviceID, rtStreamPtr->tickCount);
 		}
 		memset(fPtrIn, 0, bufferSize * nInputChannels * sizeof(float));
 	}
@@ -216,7 +227,7 @@ int ofRtAudioSoundStream::rtAudioCallback(void *outputBuffer, void *inputBuffer,
 	if (nOutputChannels > 0) {
 		memset(fPtrOut, 0, sizeof(float) * bufferSize * nOutputChannels);
 		if( rtStreamPtr->soundOutputPtr != NULL ){
-			rtStreamPtr->soundOutputPtr->audioOut((float*)outputBuffer, bufferSize, nOutputChannels, rtStreamPtr->deviceID, rtStreamPtr->tickCount);
+			rtStreamPtr->soundOutputPtr->audioOut((float*)outputBuffer, bufferSize, nOutputChannels, rtStreamPtr->outDeviceID, rtStreamPtr->tickCount);
 		}
 	}
 	
@@ -225,4 +236,4 @@ int ofRtAudioSoundStream::rtAudioCallback(void *outputBuffer, void *inputBuffer,
 
 	return 0;
 }
-
+#endif

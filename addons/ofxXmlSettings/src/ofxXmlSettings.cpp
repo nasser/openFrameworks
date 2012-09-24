@@ -4,6 +4,10 @@
 #include <string>
 #include <iostream>
 
+// this increases the accuracy of ofToString() when saving floating point values
+// but in the process of setting it also causes very small values to be ignored.
+const float floatPrecision = 9;
+
 //----------------------------------------
 // a pretty useful tokenization system:
 static vector<string> tokenize(const string & str, const string & delim);
@@ -86,15 +90,15 @@ bool ofxXmlSettings::loadFile(const string& xmlFile){
 }
 
 //---------------------------------------------------------
-void ofxXmlSettings::saveFile(const string& xmlFile){
+bool ofxXmlSettings::saveFile(const string& xmlFile){
 
 	string fullXmlFile = ofToDataPath(xmlFile);
-	doc.SaveFile(fullXmlFile);
+	return doc.SaveFile(fullXmlFile);
 }
 
 //---------------------------------------------------------
-void ofxXmlSettings::saveFile(){
-	doc.SaveFile();
+bool ofxXmlSettings::saveFile(){
+	return doc.SaveFile();
 }
 
 //---------------------------------------------------------
@@ -142,7 +146,7 @@ void ofxXmlSettings::removeTag(const string& tag, int which){
 int ofxXmlSettings::getValue(const string& tag, int defaultValue, int which){
     TiXmlHandle valHandle(NULL);
 	if (readTag(tag, valHandle, which)){
-		return strtol(valHandle.ToText()->Value(), NULL, 0);
+		return ofToInt(valHandle.ToText()->Value());
 	}
 	return defaultValue;
 }
@@ -151,7 +155,7 @@ int ofxXmlSettings::getValue(const string& tag, int defaultValue, int which){
 double ofxXmlSettings::getValue(const string& tag, double defaultValue, int which){
     TiXmlHandle valHandle(NULL);
 	if (readTag(tag, valHandle, which)){
-		return strtod(valHandle.ToText()->Value(),  NULL);
+		return ofToFloat(valHandle.ToText()->Value());
 	}
 	return defaultValue;
 }
@@ -189,7 +193,7 @@ bool ofxXmlSettings::pushTag(const string&  tag, int which){
 
     // Either find the tag specified, or the first tag if colon-seperated.
     string tagToFind((pos > 0) ? tag.substr(0,pos) :tag);
-    
+
 	//we only allow to push one tag at a time.
 	TiXmlHandle isRealHandle = storedHandle.ChildElement(tagToFind, which);
 
@@ -198,9 +202,7 @@ bool ofxXmlSettings::pushTag(const string&  tag, int which){
 		level++;
 		return true;
 	}else{
-		printf("pushTag - <");
-		printf("%s",tag.c_str());
-		printf("> tag not found\n");
+        ofLog( OF_LOG_ERROR, "pushTag - <" + tag + "> tag not found");
 	}
 
 	return false;
@@ -301,7 +303,7 @@ int ofxXmlSettings::writeTag(const string&  tag, const string& valueStr, int whi
     elements.reserve(tokens.size());
 	for(int x=0;x<(int)tokens.size();x++)
         elements.push_back(tokens.at(x));
-	
+
 
 	TiXmlText Value(valueStr);
 
@@ -363,17 +365,13 @@ int ofxXmlSettings::writeTag(const string&  tag, const string& valueStr, int whi
 
 //---------------------------------------------------------
 int ofxXmlSettings::setValue(const string& tag, int value, int which){
-	char valueStr[255];
-	sprintf(valueStr, "%i", value);
-	int tagID = writeTag(tag, valueStr, which) -1;
+	int tagID = writeTag(tag, ofToString(value).c_str(), which) -1;
 	return tagID;
 }
 
 //---------------------------------------------------------
 int ofxXmlSettings::setValue(const string& tag, double value, int which){
-	char valueStr[255];
-	sprintf(valueStr, "%f", value);
-	int tagID = writeTag(tag, valueStr, which) -1;
+	int tagID = writeTag(tag, ofToString(value, floatPrecision).c_str(), which) -1;
 	return tagID;
 }
 
@@ -385,17 +383,13 @@ int ofxXmlSettings::setValue(const string& tag, const string& value, int which){
 
 //---------------------------------------------------------
 int ofxXmlSettings::addValue(const string& tag, int value){
-	char valueStr[255];
-	sprintf(valueStr, "%i", value);
-	int tagID = writeTag(tag, valueStr, -1) -1;
+	int tagID = writeTag(tag, ofToString(value).c_str(), -1) -1;
 	return tagID;
 }
 
 //---------------------------------------------------------
 int ofxXmlSettings::addValue(const string&  tag, double value){
-	char valueStr[255];
-	sprintf(valueStr, "%f", value);
-	int tagID = writeTag(tag, valueStr, -1) -1;
+	int tagID = writeTag(tag, ofToString(value, floatPrecision).c_str(), -1) -1;
 	return tagID;
 }
 
@@ -417,9 +411,7 @@ int ofxXmlSettings::addTag(const string& tag){
 
 //---------------------------------------------------------
 int ofxXmlSettings::addAttribute(const string& tag, const string& attribute, int value, int which){
-	char valueStr[255];
-	sprintf(valueStr, "%i", value);
-	int tagID = writeAttribute(tag, attribute, valueStr, which) -1;
+	int tagID = writeAttribute(tag, attribute, ofToString(value).c_str(), which) -1;
 	return tagID;
 }
 
@@ -430,9 +422,7 @@ int ofxXmlSettings::addAttribute(const string& tag, const string& attribute, int
 
 //---------------------------------------------------------
 int ofxXmlSettings::addAttribute(const string& tag, const string& attribute, double value, int which){
-	char valueStr[255];
-	sprintf(valueStr, "%lf", value);
-	int tagID = writeAttribute(tag, attribute, valueStr, which) -1;
+	int tagID = writeAttribute(tag, attribute, ofToString(value, floatPrecision).c_str(), which) -1;
 	return tagID;
 }
 
@@ -462,7 +452,7 @@ void ofxXmlSettings::removeAttribute(const string& tag, const string& attribute,
 		else
 			tagHandle = tagHandle.FirstChildElement(tokens.at(x));
 	}
-    
+
 	if (tagHandle.ToElement()) {
 		TiXmlElement* elem = tagHandle.ToElement();
 		elem->RemoveAttribute(attribute);
@@ -490,7 +480,7 @@ int ofxXmlSettings::getNumAttributes(const string& tag, int which){
 
 	if (tagHandle.ToElement()) {
 		TiXmlElement* elem = tagHandle.ToElement();
-		
+
 		// Do stuff with the element here
 		TiXmlAttribute* first = elem->FirstAttribute();
 		if (first) {
@@ -516,7 +506,7 @@ bool ofxXmlSettings::attributeExists(const string& tag, const string& attribute,
 
 	if (tagHandle.ToElement()) {
 		TiXmlElement* elem = tagHandle.ToElement();
-		
+
 		// Do stuff with the element here
 		for (TiXmlAttribute* a = elem->FirstAttribute(); a; a = a->Next()) {
 			if (a->Name() == attribute)
@@ -539,7 +529,7 @@ bool ofxXmlSettings::getAttributeNames(const string& tag, vector<string>& outNam
 
 	if (tagHandle.ToElement()) {
 		TiXmlElement* elem = tagHandle.ToElement();
-		
+
 		// Do stuff with the element here
 		for (TiXmlAttribute* a = elem->FirstAttribute(); a; a = a->Next())
 			outNames.push_back( string(a->Name()) );
@@ -605,7 +595,7 @@ TiXmlElement* ofxXmlSettings::getElementForAttribute(const string& tag, int whic
 
 //---------------------------------------------------------
 bool ofxXmlSettings::readIntAttribute(const string& tag, const string& attribute, int& outValue, int which){
-    
+
     TiXmlElement* elem = getElementForAttribute(tag, which);
     if (elem)
         return (elem->QueryIntAttribute(attribute, &outValue) == TIXML_SUCCESS);
@@ -614,7 +604,7 @@ bool ofxXmlSettings::readIntAttribute(const string& tag, const string& attribute
 
 //---------------------------------------------------------
 bool ofxXmlSettings::readDoubleAttribute(const string& tag, const string& attribute, double& outValue, int which){
-    
+
     TiXmlElement* elem = getElementForAttribute(tag, which);
     if (elem)
         return (elem->QueryDoubleAttribute(attribute, &outValue) == TIXML_SUCCESS);
@@ -623,7 +613,7 @@ bool ofxXmlSettings::readDoubleAttribute(const string& tag, const string& attrib
 
 //---------------------------------------------------------
 bool ofxXmlSettings::readStringAttribute(const string& tag, const string& attribute, string& outValue, int which){
-    
+
     TiXmlElement* elem = getElementForAttribute(tag, which);
     if (elem)
     {
@@ -647,12 +637,12 @@ int ofxXmlSettings::writeAttribute(const string& tag, const string& attribute, c
 		else
 			tagHandle = tagHandle.FirstChildElement(tokens.at(x));
 	}
-    
+
 	int ret = 0;
 	if (tagHandle.ToElement()) {
 		TiXmlElement* elem = tagHandle.ToElement();
 		elem->SetAttribute(attribute, valueString);
-        
+
         // Do we really need this?  We could just ignore this and remove the 'addAttribute' functions...
 		// Now, just get the ID.
 		int numSameTags;
@@ -668,20 +658,20 @@ int ofxXmlSettings::writeAttribute(const string& tag, const string& attribute, c
 //---------------------------------------------------------
 bool ofxXmlSettings::loadFromBuffer( string buffer )
 {
-	
+
     int size = buffer.size();
-	
+
     bool loadOkay = doc.ReadFromMemory( buffer.c_str(), size);//, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING);
-    
+
     return loadOkay;
-	
+
 }
 //---------------------------------------------------------
 void ofxXmlSettings::copyXmlToString(string & str)
 {
 	TiXmlPrinter printer;
 	doc.Accept(&printer);
-	
+
 	str = printer.CStr();
 }
 

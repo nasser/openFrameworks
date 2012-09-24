@@ -36,8 +36,12 @@ public:
 	void setDeviceID(int _deviceID);
 	void setDesiredFrameRate(int framerate);
 	void videoSettings();
-	void setPixelFormat(ofPixelFormat pixelFormat);
+	bool setPixelFormat(ofPixelFormat pixelFormat);
 	ofPixelFormat getPixelFormat();
+
+	// specifics android
+
+	bool setAutoFocus(bool autofocus);
 
 	ofEvent<ofPixels> newFrameE;
 

@@ -46,7 +46,8 @@ public:
 	bool		isAntiAliased();
 	bool		hasFullCharacterSet();
 
-  	float 		getLineHeight();
+    int         getSize();
+    float       getLineHeight();
   	void 		setLineHeight(float height);
 	float 		getLetterSpacing();
 	void 		setLetterSpacing(float spacing);
@@ -85,6 +86,8 @@ protected:
 
 	int				fontSize;
 	bool			bMakeContours;
+	float 			simplifyAmt;
+	int 			dpi;
 
 	void 			drawChar(int c, float x, float y);
 	void			drawCharAsShape(int c, float x, float y);
@@ -97,7 +100,7 @@ protected:
 	ofMesh stringQuads;
 
 private:
-#ifdef TARGET_ANDROID
+#if defined(TARGET_ANDROID) || defined(TARGET_OF_IPHONE)
 	friend void ofUnloadAllFontTextures();
 	friend void ofReloadAllFontTextures();
 #endif

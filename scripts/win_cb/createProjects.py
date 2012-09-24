@@ -10,8 +10,8 @@ import glob
 of_root = os.path.realpath(__file__)[0:-(len(os.path.join('scripts','linux','createProject.py'))+2)]
 platform = 'win_cb'
 arch = 'win_cb'
-templates_path = os.path.join(of_root,'apps','devApps','win_cb')
-template = {'cbp': os.path.join(templates_path , 'emptyExample_' + arch + '.cbp'), 'full_cbp': os.path.join(templates_path , 'emptyExample_' + arch + '.cbp'), 'workspace': os.path.join(templates_path , 'emptyExample_' + arch + '.workspace'), 'makefile': templates_path + 'Makefile', 'config.make': templates_path + 'config.make'}
+templates_path = os.path.join(of_root,'scripts',platform,'template')
+template = {'cbp': os.path.join(templates_path , 'emptyExample.cbp'), 'full_cbp': os.path.join(templates_path , 'emptyExample.cbp'), 'workspace': os.path.join(templates_path , 'emptyExample.workspace'), 'makefile': templates_path + 'Makefile', 'config.make': templates_path + 'config.make'}
 fullCBP = True
 
 def addCBPIncludePath(project,dirpath):
@@ -173,6 +173,9 @@ def createWorkspace(project_path):
     root = ws.getroot()
     workspace = root.Workspace
     
+    if workspace.get("title")=="emptyExample":
+         workspace.set("title",project_name)
+    
     for project in workspace.Project:
         if project.get("filename")=="emptyExample.cbp":
             project.set("filename",project_name+".cbp")
@@ -228,11 +231,11 @@ parser.add_argument('project_path', metavar='project_path', nargs='?')
 project_path = parser.parse_args().project_path
 fullCBP = True #parser.parse_args().not_mk
 
-if project_path==None: #parse all examples
-    for example in os.listdir(os.path.join(of_root,'apps','examples')):
-        createProject(os.path.join(of_root,'apps','examples',example))
-    for example in os.listdir(os.path.join(of_root,'apps','addonsExamples')):
-        createProject(os.path.join(of_root,'apps','addonsExamples',example))
+if project_path==None: #parse all directories in ofroot/examples
+    for directory in os.listdir(os.path.join(of_root,'examples')):
+        if directory != '.gitignore': #parse all examples in ofroot/examples/directory
+            for example in os.listdir(os.path.join(of_root,'examples',directory)):
+                if example != '.gitkeep': createProject(os.path.join(of_root,'examples',directory,example))
 else:
     createProject(project_path)
     

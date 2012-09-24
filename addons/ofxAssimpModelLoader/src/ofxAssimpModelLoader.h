@@ -40,6 +40,7 @@ class ofxAssimpModelLoader{
 
         // Scale the model to the screen automatically.
         void           setScaleNomalization(bool normalize);
+        void		   setNormalizationFactor(float factor);
 
         // This changes when you load a different model, may be 0.
         unsigned int   getAnimationCount();
@@ -85,6 +86,15 @@ class ofxAssimpModelLoader{
 		float          getNormalizedScale();
 		ofPoint        getScale();
 
+		ofPoint			getSceneMin(bool bScaled = false);
+		ofPoint			getSceneMax(bool bScaled = false);
+						
+		int				getNumRotations();	// returns the no. of applied rotations
+		ofPoint			getRotationAxis(int which); // gets each rotation axis
+		float			getRotationAngle(int which); //gets each rotation angle
+
+        void 		   calculateDimensions();
+
 		const aiScene* getAssimpScene();
     
          
@@ -104,7 +114,6 @@ class ofxAssimpModelLoader{
         void getBoundingBoxWithMinVector(struct aiVector3D* min, struct aiVector3D* max);
         void getBoundingBoxForNode(const struct aiNode* nd,  struct aiVector3D* min, struct aiVector3D* max, struct aiMatrix4x4* trafo);
         
-        void calculateDimensions();
 
         bool hasAnimations;
         int currentAnimation;
@@ -132,4 +141,5 @@ class ofxAssimpModelLoader{
         vector <ofxAssimpMeshHelper> modelMeshes;
 
         bool bUsingTextures, bUsingNormals, bUsingColors, bUsingMaterials;
+        float normalizeFactor;
 };

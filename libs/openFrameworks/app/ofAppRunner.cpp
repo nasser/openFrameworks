@@ -20,12 +20,8 @@
 //========================================================================
 // static variables:
 
-ofPtr<ofBaseApp>				OFSAptr;
-bool 						bMousePressed;
-bool						bRightButton;
-int							width, height;
-
-static ofPtr<ofAppBaseWindow> window;
+static ofPtr<ofBaseApp>				OFSAptr;
+static ofPtr<ofAppBaseWindow> 		window;
 
 
 //========================================================================
@@ -60,11 +56,6 @@ void ofRunApp(ofBaseApp * OFSA){
 		OFSAptr->mouseY = 0;
 	}
 
-	#ifdef TARGET_OSX
-		//this internally checks the executable path for osx
-		ofSetDataPathRoot("../../../data/");
-	#endif
-
 	atexit(ofExitCallback);
 
 	#ifdef WIN32_HIGH_RES_TIMING
@@ -93,6 +84,7 @@ void ofSetupOpenGL(ofPtr<ofAppBaseWindow> windowPtr, int w, int h, int screenMod
 	window->setupOpenGL(w, h, screenMode);
 	
 #ifndef TARGET_OPENGLES
+	glewExperimental = GL_TRUE;
 	GLenum err = glewInit();
 	if (GLEW_OK != err)
 	{
@@ -125,13 +117,15 @@ void ofSetupOpenGL(int w, int h, int screenMode){
 
 void ofExitCallback(){
 
+	ofNotifyExit();
+
 	//------------------------
 	// try to close engine if needed:
 	ofSoundShutdown();
 	//------------------------
 
 	// try to close quicktime, for non-linux systems:
-	#if defined( TARGET_OSX ) || defined( TARGET_WIN32 )
+	#if defined( OF_VIDEO_CAPTURE_QUICKTIME ) || defined( OF_VIDEO_PLAYER_QUICKTIME)
 	closeQuicktime();
 	#endif
 
@@ -147,7 +141,6 @@ void ofExitCallback(){
 		timeEndPeriod(1);
 	#endif
 
-	ofNotifyExit();
 }
 
 //--------------------------------------
@@ -158,11 +151,6 @@ void ofRunApp(ofPtr<ofBaseApp> OFSA){
 		OFSAptr->mouseX = 0;
 		OFSAptr->mouseY = 0;
 	}
-
-	#ifdef TARGET_OSX 
-		//this internally checks the executable path for osx
-		ofSetDataPathRoot("../../../data/");
-	#endif
 
 	atexit(ofExitCallback);
 
@@ -373,14 +361,22 @@ void ofSetVerticalSync(bool bSync){
 	//--------------------------------------
 	#ifdef TARGET_LINUX
 	//--------------------------------------
-		//if (GLEW_GLX_SGI_swap_control)
+		void (*swapIntervalExt)(Display *,GLXDrawable, int)  = (void (*)(Display *,GLXDrawable, int)) glXGetProcAddress((const GLubyte*) "glXSwapIntervalEXT");
+		if(swapIntervalExt){
+			Display *dpy = glXGetCurrentDisplay();
+			GLXDrawable drawable = glXGetCurrentDrawable();
+			if (drawable) {
+				swapIntervalExt(dpy, drawable, bSync ? 1 : 0);
+				return;
+			}
+		}
 		void (*swapInterval)(int)  = (void (*)(int)) glXGetProcAddress((const GLubyte*) "glXSwapIntervalSGI");
 		if(!swapInterval)
 			swapInterval = (void (*)(int)) glXGetProcAddress((const GLubyte*) "glXSwapIntervalMESA");
 
 		if(swapInterval)
 			swapInterval(bSync ? 1 : 0);
-		//glXSwapIntervalSGI(bSync ? 1 : 0);
+
 	//--------------------------------------
 	#endif
 	//--------------------------------------

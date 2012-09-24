@@ -2,7 +2,7 @@
 
 //-------------------------------
 #define OF_VERSION	7
-#define OF_VERSION_MINOR 0
+#define OF_VERSION_MINOR 1
 //-------------------------------
 
 enum ofLoopType{
@@ -10,6 +10,35 @@ enum ofLoopType{
 	OF_LOOP_PALINDROME=0x02,
 	OF_LOOP_NORMAL=0x03
 };
+
+enum ofTargetPlatform{
+	OF_TARGET_OSX,
+	OF_TARGET_WINGCC,
+	OF_TARGET_WINVS,
+	OF_TARGET_IPHONE,
+	OF_TARGET_ANDROID,
+	OF_TARGET_LINUX,
+	OF_TARGET_LINUX64
+};
+
+// Cross-platform deprecation warning
+#ifdef __GNUC__
+	// clang also has this defined. deprecated(message) is only for gcc>=4.5
+	#if (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 5)
+        #define OF_DEPRECATED_MSG(message, func) func __attribute__ ((deprecated(message)))
+    #else
+        #define OF_DEPRECATED_MSG(message, func) func __attribute__ ((deprecated))
+    #endif
+	#define OF_DEPRECATED(func) func __attribute__ ((deprecated))
+#elif defined(_MSC_VER)
+	#define OF_DEPRECATED_MSG(message, func) __declspec(deprecated(message)) func
+	#define OF_DEPRECATED(func) __declspec(deprecated) func
+#else
+	#pragma message("WARNING: You need to implement DEPRECATED for this compiler")
+	#define OF_DEPRECATED_MSG(message, func) func
+	#define OF_DEPRECATED(func) func
+#endif
+
 //-------------------------------
 //  find the system type --------
 //-------------------------------
@@ -22,7 +51,7 @@ enum ofLoopType{
 #elif defined( __APPLE_CC__)
 	#include <TargetConditionals.h>
 
-	#if (TARGET_OF_IPHONE_SIMULATOR) || (TARGET_OS_IPHONE) || (TARGET_IPHONE)
+	#if (TARGET_OS_IPHONE_SIMULATOR) || (TARGET_OS_IPHONE) || (TARGET_IPHONE)
 		#define TARGET_OF_IPHONE
 		#define TARGET_OPENGLES
 	#else
@@ -59,8 +88,7 @@ enum ofLoopType{
 	#define __WINDOWS_DS__
 	#define __WINDOWS_MM__
 	#if (_MSC_VER)       // microsoft visual studio
-		typedef unsigned __int64  uint64_t;		// allow us to use uint64_t
-		#pragma warning(disable : 4996)     // disable all deprecation warnings
+		#include <stdint.h>
 		#pragma warning(disable : 4068)     // unknown pragmas
 		#pragma warning(disable : 4101)     // unreferenced local variable
 		#pragma	warning(disable : 4312)		// type cast conversion (in qt vp)
@@ -110,6 +138,7 @@ enum ofLoopType{
 #ifdef TARGET_LINUX
 		#define GL_GLEXT_PROTOTYPES
         #include <unistd.h>
+		#include <glxew.h>
 		#include <GL/glew.h>
 		#include <GL/gl.h>
 		#include <GL/glx.h>
@@ -138,8 +167,10 @@ enum ofLoopType{
 #endif
 
 #ifdef TARGET_ANDROID
+	#include <typeinfo>
 	#include <unistd.h>
 	#include <GLES/gl.h>
+	#define GL_GLEXT_PROTOTYPES
 	#include <GLES/glext.h>
 
 	#define TARGET_LITTLE_ENDIAN
@@ -167,64 +198,86 @@ typedef TESSindex ofIndexType;
 
 
 //------------------------------------------------ capture
-// if are linux
+// check if any video capture system is already defined from the compiler
+#if !defined(OF_VIDEO_CAPTURE_GSTREAMER) && !defined(OF_VIDEO_CAPTURE_QUICKTIME) && !defined(OF_VIDEO_CAPTURE_DIRECTSHOW) && !defined(OF_VIDEO_CAPTURE_ANDROID) && !defined(OF_VIDEO_CAPTURE_IPHONE)
+	#ifdef TARGET_LINUX
 
-#ifdef TARGET_LINUX
-
-
-	// firewire cameras doesn't work yet with gstreamer you can change
-	// to unicap by uncommenting the following define. note that this can make
-	// your app GPL
-
-	// (if you change this, you might need to clean and rebuild, in CB build->rebuild)
-
-	//#define OF_SWITCH_TO_UNICAP_FOR_LINUX_VIDCAP
-
-	#ifdef OF_SWITCH_TO_UNICAP_FOR_LINUX_VIDCAP
-		#define OF_VIDEO_CAPTURE_UNICAP
-    #else
 		#define OF_VIDEO_CAPTURE_GSTREAMER
+
+	#elif defined(TARGET_OSX)
+		//on 10.6 and below we can use the old grabber
+		#ifndef MAC_OS_X_VERSION_10_7
+			#define OF_VIDEO_CAPTURE_QUICKTIME
+		#else
+			#define OF_VIDEO_CAPTURE_QTKIT
+        #endif
+
+	#elif defined (TARGET_WIN32)
+
+		// comment out this following line, if you'd like to use the
+		// quicktime capture interface on windows
+		// if not, we default to videoInput library for
+		// direct show capture...
+
+		#define OF_SWITCH_TO_DSHOW_FOR_WIN_VIDCAP
+
+		#ifdef OF_SWITCH_TO_DSHOW_FOR_WIN_VIDCAP
+			#define OF_VIDEO_CAPTURE_DIRECTSHOW
+		#else
+			#define OF_VIDEO_CAPTURE_QUICKTIME
+		#endif
+
+	#elif defined(TARGET_ANDROID)
+
+		#define OF_VIDEO_CAPTURE_ANDROID
+
+	#elif defined(TARGET_OF_IPHONE)
+
+		#define OF_VIDEO_CAPTURE_IPHONE
+
 	#endif
-
-#elif defined(TARGET_OSX) 
-
-    #define OF_VIDEO_CAPTURE_QUICKTIME
-
-#elif defined (TARGET_WIN32)
-
-    // comment out this following line, if you'd like to use the
-    // quicktime capture interface on windows
-    // if not, we default to videoInput library for
-    // direct show capture...
-
-    #define OF_SWITCH_TO_DSHOW_FOR_WIN_VIDCAP
-
-    #ifdef OF_SWITCH_TO_DSHOW_FOR_WIN_VIDCAP
-		#define OF_VIDEO_CAPTURE_DIRECTSHOW
-    #else
-		#define OF_VIDEO_CAPTURE_QUICKTIME
-    #endif
-
-#elif defined(TARGET_ANDROID)
-
-	#define OF_VIDEO_CAPTURE_ANDROID
-
-#elif defined(TARGET_OF_IPHONE)
-
-    #define OF_VIDEO_CAPTURE_IPHONE
-
 #endif
 
-
-#ifdef TARGET_LINUX
-	#define OF_VIDEO_PLAYER_GSTREAMER
-#else 
-	#ifdef TARGET_OF_IPHONE
-		#define OF_VIDEO_CAPTURE_IPHONE
-		#define OF_VIDEO_PLAYER_IPHONE
-	#elif !defined(TARGET_ANDROID)
-		#define OF_VIDEO_PLAYER_QUICKTIME
+//------------------------------------------------  video player
+// check if any video player system is already defined from the compiler
+#if !defined(OF_VIDEO_PLAYER_GSTREAMER) && !defined(OF_VIDEO_PLAYER_IPHONE) && !defined(OF_VIDEO_PLAYER_QUICKTIME)
+	#ifdef TARGET_LINUX
+		#define OF_VIDEO_PLAYER_GSTREAMER
+	#else
+		#ifdef TARGET_OF_IPHONE
+			#define OF_VIDEO_PLAYER_IPHONE
+        #elif defined(TARGET_OSX)
+			#define OF_VIDEO_PLAYER_QTKIT
+		#elif !defined(TARGET_ANDROID)
+			#define OF_VIDEO_PLAYER_QUICKTIME
+		#endif
 	#endif
+#endif
+
+//------------------------------------------------ soundstream
+// check if any soundstream api is defined from the compiler
+#if !defined(OF_SOUNDSTREAM_PORTAUDIO) && !defined(OF_SOUNDSTREAM_RTAUDIO) && !defined(OF_SOUNDSTREAM_ANDROID)
+	#ifdef TARGET_LINUX
+		#define OF_SOUNDSTREAM_PORTAUDIO
+	#elif defined(TARGET_WIN32) || defined(TARGET_OSX)
+		#define OF_SOUNDSTREAM_RTAUDIO
+	#elif defined(TARGET_ANDROID)
+		#define OF_SOUNDSTREAM_ANDROID
+	#else
+		#define OF_SOUNDSTREAM_IPHONE
+	#endif
+#endif
+
+//------------------------------------------------ soundplayer
+// check if any soundplayer api is defined from the compiler
+#if !defined(OF_SOUND_PLAYER_QUICKTIME) && !defined(OF_SOUND_PLAYER_FMOD) && !defined(OF_SOUND_PLAYER_OPENAL)
+  #ifdef TARGET_OF_IPHONE
+  	#define OF_SOUND_PLAYER_IPHONE
+  #elif defined TARGET_LINUX
+  	#define OF_SOUND_PLAYER_OPENAL
+  #elif !defined(TARGET_ANDROID)
+  	#define OF_SOUND_PLAYER_FMOD
+  #endif
 #endif
 
 // comment out this line to disable all poco related code
@@ -253,6 +306,7 @@ typedef ofBaseApp ofSimpleApp;
 #include <sstream>  //for ostringsream
 #include <iomanip>  //for setprecision
 #include <fstream>
+#include <algorithm>
 using namespace std;
 
 #ifndef PI
@@ -347,11 +401,18 @@ enum ofBlendMode{
 //this is done to match the iPhone defaults 
 //we don't say landscape, portrait etc becuase iPhone apps default to portrait while desktop apps are typically landscape
 enum ofOrientation{
-	OF_ORIENTATION_UNKNOWN = 0,
 	OF_ORIENTATION_DEFAULT = 1,	
 	OF_ORIENTATION_180 = 2,
-	OF_ORIENTATION_90_RIGHT = 3,
-	OF_ORIENTATION_90_LEFT = 4,
+    OF_ORIENTATION_90_LEFT = 3,
+	OF_ORIENTATION_90_RIGHT = 4,
+    OF_ORIENTATION_UNKNOWN = 5
+};
+
+// gradient modes when using ofBackgroundGradient
+enum ofGradientMode {
+	OF_GRADIENT_LINEAR = 0,
+	OF_GRADIENT_CIRCULAR,
+	OF_GRADIENT_BAR
 };
 
 // these are straight out of glu, but renamed and included here

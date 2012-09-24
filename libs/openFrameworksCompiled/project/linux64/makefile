@@ -22,12 +22,22 @@ ifeq ($(findstring Android,$(MAKECMDGOALS)),Android)
 	endif
 endif
 
+ifndef ARCH
+	ARCH = $(shell uname -m)
+endif
+
 ifeq ($(ARCH),android)
 	COMPILER_OPTIMIZATION = -Os
 	NDK_PLATFORM = android-8
+	GCC_VERSION = 4.4.3
+else
+ifeq ($(ARCH),armv7l)
+	COMPILER_OPTIMIZATION = -march=armv7-a -mtune=cortex-a8 -finline-functions -funroll-all-loops  -O3 -funsafe-math-optimizations -mfpu=neon -ftree-vectorize -mfloat-abi=softfp
 else
 	COMPILER_OPTIMIZATION = -march=native -mtune=native -finline-functions -funroll-all-loops  -Os
 endif
+endif
+
 USER_CFLAGS = 
 
 
@@ -47,26 +57,41 @@ ifneq ($(ARCH),android)
 	ifeq ($(ARCH),x86_64)
 		LIBSPATH=linux64
 	else
-		LIBSPATH=linux
+		ifeq ($(ARCH),armv7l)
+			LIBSPATH=linuxarmv7l
+		else
+			LIBSPATH=linux
+		endif
 	endif
 else
-	LIBSPATH = android
+    ifeq ($(findstring Release_arm7,$(MAKECMDGOALS)),Release_arm7)
+	    LIBSPATH = android/armeabi-v7a
+	    ABI = armeabi-v7a
+    else
+        ifeq ($(MAKECMDGOALS),Release_neonAndroid)
+            LIBSPATH = android/armeabi-v7a
+        	ABI = armeabi-v7a
+        else
+        	LIBSPATH = android/armeabi
+	        ABI = armeabi
+        endif
+    endif
 	#NDK_ROOT = $(shell cat ndk_path.make)
-	TOOLCHAIN=arm-linux-androideabi-4.4.3
+	TOOLCHAIN=arm-linux-androideabi-$(GCC_VERSION)
 	TOOLCHAIN_PATH=$(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(HOST_PLATFORM)/bin/
 	ANDROID_PREFIX=arm-linux-androideabi-
 	CC=$(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(HOST_PLATFORM)/bin/$(ANDROID_PREFIX)gcc
 	CXX=$(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(HOST_PLATFORM)/bin/$(ANDROID_PREFIX)g++
 	AR=$(NDK_ROOT)/toolchains/$(TOOLCHAIN)/prebuilt/$(HOST_PLATFORM)/bin/$(ANDROID_PREFIX)ar
 	SYSROOT=$(NDK_ROOT)/platforms/$(NDK_PLATFORM)/arch-arm/
-	CFLAGS += -nostdlib --sysroot=$(SYSROOT) -fno-short-enums 
-	CFLAGS += -I"$(NDK_ROOT)/platforms/$(NDK_PLATFORM)/arch-arm/usr/include" -I"$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/include/" -I"$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/libs/armeabi/include"
+	CFLAGS += -nostdlib --sysroot=$(SYSROOT) -fno-short-enums -frtti -fexceptions
+	CFLAGS += -I"$(NDK_ROOT)/platforms/$(NDK_PLATFORM)/arch-arm/usr/include/" -I"$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/include" -I"$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/libs/$(ABI)/include" -I"$(NDK_ROOT)/sources/crystax/include/"
 	CFLAGS += -DANDROID
 endif
 
 SOURCE_DIRS = $(shell find ../../../openFrameworks -maxdepth 1 -mindepth 1 -type d )
 ifeq ($(ARCH),android)
-	SOURCES = $(shell find $(SOURCE_DIRS) -name "*.cpp" | grep -v "ofAppGlutWindow.cpp" | grep -v ofGstVideoPlayer.cpp | grep -v ofQuickTimeGrabber.cpp | grep -v ofVideoPlayer.cpp | grep -v ofGstVideoGrabber.cpp | grep -v ofSoundPlayer.cpp | grep -v ofOpenALSoundPlayer.cpp)
+	SOURCES = $(shell find $(SOURCE_DIRS) -name "*.cpp" | grep -v "ofAppGlutWindow.cpp" | grep -v ofGstVideoPlayer.cpp | grep -v ofQuickTimeGrabber.cpp | grep -v ofGstVideoGrabber.cpp | grep -v ofOpenALSoundPlayer.cpp)
 else
 	SOURCES = $(shell find $(SOURCE_DIRS) -name "*.cpp") 
 endif
@@ -150,6 +175,8 @@ ReleaseAndroid: $(TARGET)
 
 Release_arm7Android: $(TARGET)
 
+Release_neonAndroid: $(TARGET)
+
 all: 
 	$(MAKE) Debug
 	$(MAKE) Release
@@ -158,15 +185,17 @@ android:
 	$(MAKE) DebugAndroid
 	$(MAKE) ReleaseAndroid
 	$(MAKE) Release_arm7Android
+	$(MAKE) Release_neonAndroid
 
 #This rule does the compilation
 $(OBJ_OUTPUT)%.o: ../../../%.cpp 
 	@echo "compiling object for " $<
 	mkdir -p $(@D)
-	$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(USER_CFLAGS) -MMD -MP -MF$(OBJ_OUTPUT)$*.d -MT$(OBJ_OUTPUT)$*.d -o $@ -c $<
+	$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(USER_CFLAGS) -MMD -MP -MF$(OBJ_OUTPUT)$*.d -MT$(OBJ_OUTPUT)$*.o -o $@ -c $<
 
 $(TARGET) : $(OBJS) 
 	echo "creating " $(TARGET)
+	mkdir -p $(@D)
 	$(AR) -r "$@" $(OBJS)
 
 -include $(DEPFILES)

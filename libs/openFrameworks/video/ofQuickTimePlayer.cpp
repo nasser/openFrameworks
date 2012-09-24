@@ -2,9 +2,7 @@
 #include "ofUtils.h"
 
 #ifndef TARGET_LINUX
-//--------------------------------------------------------------
 #ifdef  OF_VIDEO_PLAYER_QUICKTIME
-//--------------------------------------------------------------
 
 bool  	createMovieFromPath(char * path, Movie &movie);
 bool 	createMovieFromPath(char * path, Movie &movie){
@@ -101,11 +99,6 @@ OSErr 	DrawCompleteProc(Movie theMovie, long refCon){
 	return noErr;
 }
 
-//--------------------------------------------------------------
-#endif
-//--------------------------------------------------------------
-
-
 //---------------------------------------------------------------------------
 ofQuickTimePlayer::ofQuickTimePlayer (){
 
@@ -134,7 +127,8 @@ ofQuickTimePlayer::ofQuickTimePlayer (){
 ofQuickTimePlayer::~ofQuickTimePlayer(){
 
 	closeMovie();
-
+    clearMemory();
+    
 	//--------------------------------------
 	#ifdef OF_VIDEO_PLAYER_QUICKTIME
 	//--------------------------------------
@@ -164,8 +158,17 @@ void ofQuickTimePlayer::update(){
 		//--------------------------------------------------------------
 		#ifdef OF_VIDEO_PLAYER_QUICKTIME
 		//--------------------------------------------------------------
-
-			#if defined(TARGET_WIN32) || defined(QT_USE_MOVIETASK)
+			
+			// is this necessary on windows with quicktime?
+			#ifdef TARGET_OSX 
+				// call MoviesTask if we're not on the main thread
+				if ( CFRunLoopGetCurrent() != CFRunLoopGetMain() )
+				{
+					//ofLog( OF_LOG_NOTICE, "not on the main loop, calling MoviesTask") ;
+					MoviesTask(moviePtr,0);
+				}
+			#else
+				// on windows we always call MoviesTask
 				MoviesTask(moviePtr,0);
 			#endif
 
@@ -215,13 +218,13 @@ void ofQuickTimePlayer::closeMovie(){
 		DisposeMovieDrawingCompleteUPP(myDrawCompleteProc);
 
 		moviePtr = NULL;
+        
     }
 
    	//--------------------------------------
 	#endif
     //--------------------------------------
 
-	clearMemory();
 	bLoaded = false;
 
 }
@@ -291,7 +294,7 @@ bool ofQuickTimePlayer::loadMovie(string name){
 				width 	= movieRect.right;
 				height 	= movieRect.bottom;
 				pixels.clear();
-				delete(offscreenGWorldPixels);
+				delete [] offscreenGWorldPixels;
 				if ((offscreenGWorld)) DisposeGWorld((offscreenGWorld));
 				createImgMemAndGWorld();
 			}
@@ -451,7 +454,7 @@ void ofQuickTimePlayer::stop(){
 }
 
 //--------------------------------------------------------
-void ofQuickTimePlayer::setVolume(int volume){
+void ofQuickTimePlayer::setVolume(float volume){
 	if( !isLoaded() ){
 		ofLog(OF_LOG_ERROR, "ofQuickTimePlayer: movie not loaded!");
 		return;
@@ -461,7 +464,7 @@ void ofQuickTimePlayer::setVolume(int volume){
 	#ifdef OF_VIDEO_PLAYER_QUICKTIME
 	//--------------------------------------
 
-	SetMovieVolume(moviePtr, volume);
+	SetMovieVolume(moviePtr, volume*255);
 
 	//--------------------------------------
 	#endif
@@ -659,6 +662,22 @@ int ofQuickTimePlayer::getCurrentFrame(){
 
 }
 
+//---------------------------------------------------------------------------
+bool ofQuickTimePlayer::setPixelFormat(ofPixelFormat pixelFormat){
+	//note as we only support RGB we are just confirming that this pixel format is supported
+	if( pixelFormat == OF_PIXELS_RGB ){
+		return true;
+	}
+	ofLogWarning("ofQuickTimePlayer") << "requested pixel format not supported" << endl;
+	return false;
+}
+
+//---------------------------------------------------------------------------
+ofPixelFormat ofQuickTimePlayer::getPixelFormat(){
+	//note if you support more than one pixel format you will need to return a ofPixelFormat variable. 
+	return OF_PIXELS_RGB;
+}
+
 
 //---------------------------------------------------------------------------
 bool ofQuickTimePlayer::getIsMovieDone(){
@@ -829,6 +848,8 @@ bool ofQuickTimePlayer::isLoaded(){
 bool ofQuickTimePlayer::isPlaying(){
 	return bPlaying;
 }
+
+#endif
 
 #endif
 

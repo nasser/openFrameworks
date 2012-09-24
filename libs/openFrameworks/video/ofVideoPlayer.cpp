@@ -11,6 +11,8 @@ ofVideoPlayer::ofVideoPlayer (){
 //---------------------------------------------------------------------------
 void ofVideoPlayer::setPlayer(ofPtr<ofBaseVideoPlayer> newPlayer){
 	player = newPlayer;
+	setPixelFormat(internalPixelFormat);	//this means that it will try to set the pixel format you have been using before. 
+											//if the format is not supported ofVideoPlayer's internalPixelFormat will be updated to that of the player's
 }
 
 //---------------------------------------------------------------------------
@@ -18,27 +20,66 @@ ofPtr<ofBaseVideoPlayer> ofVideoPlayer::getPlayer(){
 	return player;
 }
 
+//we only set pixel format on the player if it exists. 
+//if the movie is already loaded then we can't update the format.
+//also if the format is not supported we get the format from the player instead.
 //--------------------------------------------------------------------
-void ofVideoPlayer::setPixelFormat(ofPixelFormat pixelFormat) {
-	internalPixelFormat = pixelFormat;
+bool ofVideoPlayer::setPixelFormat(ofPixelFormat pixelFormat) {
+	if( player != NULL ){
+		if( player->isLoaded() ){
+			ofLogWarning("ofVideoPlayer") << "setPixelFormat - can't be called on a movie that is already loaded ";
+			internalPixelFormat = player->getPixelFormat(); 
+			return false;
+		}else{
+			if( player->setPixelFormat(pixelFormat) ){		
+				internalPixelFormat = player->getPixelFormat();  //we do this as either way we want the players format
+			}else{
+				internalPixelFormat = player->getPixelFormat();  //we do this as either way we want the players format
+				return false; 					
+			}
+		}
+	}else{
+		internalPixelFormat = pixelFormat;	
+	}
+	return true;
+}
+
+//---------------------------------------------------------------------------
+ofPixelFormat ofVideoPlayer::getPixelFormat(){
+	if( player != NULL ){
+		internalPixelFormat = player->getPixelFormat();
+	}
+	return internalPixelFormat;
 }
 
 //---------------------------------------------------------------------------
 bool ofVideoPlayer::loadMovie(string name){
-	if( player == NULL ){
-		setPlayer( ofPtr<OF_VID_PLAYER_TYPE>(new OF_VID_PLAYER_TYPE) );
-		player->setPixelFormat(internalPixelFormat);
-	}
+	#ifndef TARGET_ANDROID
+		if( player == NULL ){
+			setPlayer( ofPtr<OF_VID_PLAYER_TYPE>(new OF_VID_PLAYER_TYPE) );
+			player->setPixelFormat(internalPixelFormat);
+		}
+	#endif
 	
 	bool bOk = player->loadMovie(name);
 	width	 = player->getWidth();
 	height	 = player->getHeight();
-	
-	if( bOk && bUseTexture )
-		if(width!=0 && height!=0)
-			tex.allocate(width, height, GL_RGB);
+
+	if( bOk){
+        moviePath = name;
+        if(bUseTexture ){
+            if(width!=0 && height!=0) {
+                tex.allocate(width, height, ofGetGLTypeFromPixelFormat(internalPixelFormat));
+            }
+        }
+    }
 	
 	return bOk;
+}
+
+//---------------------------------------------------------------------------
+string ofVideoPlayer::getMoviePath(){
+    return moviePath;	
 }
 
 //---------------------------------------------------------------------------
@@ -74,7 +115,12 @@ ofPixelsRef ofVideoPlayer::getPixelsRef(){
 //---------------------------------------------------------------------------
 //for getting a reference to the texture
 ofTexture & ofVideoPlayer::getTextureReference(){
-	return tex;
+	if(playerTex == NULL){
+		return tex;
+	}
+	else{
+		return *playerTex;
+	}
 }
 
 
@@ -98,8 +144,11 @@ void ofVideoPlayer::update(){
 			
 			if(playerTex == NULL){
 				unsigned char *pxls = player->getPixels();
-
-				if(width==0 || height==0) {
+				
+				bool bDiffPixFormat = ( tex.bAllocated() && tex.texData.glTypeInternal != ofGetGLTypeFromPixelFormat(internalPixelFormat) );
+				
+				//TODO: we might be able to do something smarter here for not re-allocating movies of the same size and type. 
+				if(width==0 || height==0 || bDiffPixFormat ){ //added a check if the pixel format and the texture don't match
 					if(player->getWidth() != 0 && player->getHeight() != 0) {
 						
 						width = player->getWidth();
@@ -107,12 +156,12 @@ void ofVideoPlayer::update(){
 					
 						if(tex.bAllocated())
 							tex.clear();
-					
-						tex.allocate(width, height, GL_RGB);
-						tex.loadData(pxls, tex.getWidth(), tex.getHeight(), GL_RGB);
+
+						tex.allocate(width, height, ofGetGLTypeFromPixelFormat(internalPixelFormat));
+						tex.loadData(pxls, tex.getWidth(), tex.getHeight(), ofGetGLTypeFromPixelFormat(internalPixelFormat));
 					}
 				}else{
-					tex.loadData(pxls, tex.getWidth(), tex.getHeight(), GL_RGB);
+					tex.loadData(pxls, tex.getWidth(), tex.getHeight(), ofGetGLTypeFromPixelFormat(internalPixelFormat));
 				}
 			}
 		}
@@ -152,8 +201,13 @@ void ofVideoPlayer::stop(){
 }
 
 //--------------------------------------------------------
-void ofVideoPlayer::setVolume(int volume){
+void ofVideoPlayer::setVolume(float volume){
 	if( player != NULL ){
+		if ( volume > 1.0f ){
+			ofLogWarning("ofVideoPlayer") << "*** the range of setVolume changed with oF0072 from int [0..100] to float [0..1].";
+			ofLogWarning("ofVideoPlayer") << "*** limiting input volume " << volume << " to 1.0f.";
+			volume = 1.0f;
+		}
 		player->setVolume(volume);
 	}
 }
@@ -269,59 +323,34 @@ void ofVideoPlayer::setPaused(bool _bPause){
 //------------------------------------
 void ofVideoPlayer::setUseTexture(bool bUse){
 	bUseTexture = bUse;
+	if(bUse && width!=0 && height!=0 && !tex.isAllocated()){
+		tex.allocate(width, height, ofGetGLTypeFromPixelFormat(internalPixelFormat));
+	}
 }
 
 //----------------------------------------------------------
 void ofVideoPlayer::setAnchorPercent(float xPct, float yPct){
-	tex.setAnchorPercent(xPct, yPct);
+	getTextureReference().setAnchorPercent(xPct, yPct);
 }
 
 //----------------------------------------------------------
 void ofVideoPlayer::setAnchorPoint(float x, float y){
-	tex.setAnchorPoint(x, y);
+	getTextureReference().setAnchorPoint(x, y);
 }
 
 //----------------------------------------------------------
 void ofVideoPlayer::resetAnchor(){
-	tex.resetAnchor();
+	getTextureReference().resetAnchor();
 }
 
 //------------------------------------
 void ofVideoPlayer::draw(float _x, float _y, float _w, float _h){
-	if(playerTex == NULL)
-		tex.draw(_x, _y, _w, _h);
-	else
-		playerTex->draw(_x, _y, _w, _h);
+	getTextureReference().draw(_x, _y, _w, _h);	
 }
 
 //------------------------------------
 void ofVideoPlayer::draw(float _x, float _y){
-	if(playerTex == NULL)
-		tex.draw(_x, _y);
-	else
-	{
-		playerTex->draw(_x,_y);
-	}
-}
-
-//------------------------------------
-void ofVideoPlayer::draw(const ofPoint & p){
-	if(playerTex == NULL)
-		tex.draw(p);
-	else
-	{
-		playerTex->draw(p);
-	}
-}
-
-//------------------------------------
-void ofVideoPlayer::draw(const ofRectangle & r){
-	if(playerTex == NULL)
-		tex.draw(r);
-	else
-	{
-		playerTex->draw(r);
-	}
+	getTextureReference().draw(_x, _y);
 }
 
 //------------------------------------
