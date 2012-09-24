@@ -1,0 +1,72 @@
+CC = "gcc"
+CXX = "g++"
+# CXXFLAGS = "-arch i386 -g"
+CXXFLAGS = "-w -flat_namespace -undefined suppress"
+
+LibsDir = "libs"
+BuildDir = "build"
+SharedObject = "libof.so"
+
+SrcIgnore = /(gst|fmod|quicktime|qt|glut|systemutils|sound|video    )/i
+# ofSystemUtils uses deprecated 32bit calls
+
+Defines = "-DTARGET_OSX"
+OpenFrameworksIncludeDirs = FileList["#{LibsDir}/openFrameworks/*"].reject { |d| d =~ /\./ } + ["#{LibsDir}/openFrameworks/"]
+LibraryIncludeDirs = FileList["#{LibsDir}/**/include/**/"]
+Includes = (OpenFrameworksIncludeDirs + LibraryIncludeDirs).map { |i| "-idirafter #{i}"}
+
+Src = FileList["#{LibsDir}/**/*"].select { |f| f =~ /\.cpp$/ }.reject { |f| f =~ SrcIgnore }
+Obj = Src.map { |src| "#{BuildDir}/#{File.basename(src).ext('o')}" }
+Frameworks = %w[OpenGL QTKit CoreAudio Carbon].map { |f| "-framework #{f} " }
+Libraries = FileList["#{LibsDir}/*/lib/osx/*"].select { |f| f =~ /\.a$/ }.reject { |f| f =~ /(openFrameworks)/}
+
+task :default => "build:shared"
+
+namespace :show do
+  desc "Print out include flags"
+  task "includes" do
+    print Includes
+  end
+
+  desc "Measure size of class"
+  task :sizeof, :klass do |t, args|
+    klass = args[:klass]
+
+    bin_filename = "sizeof-#{klass.hash}"
+    src_filename = "#{bin_filename}.cc"
+
+    File.open(src_filename, 'w') do |f|
+      f.write <<-END_CODE
+        #include "ofMain.h"
+        #include <stdio.h>
+
+        int main(int argc, char** argv) { printf("%ld\\n", sizeof(#{klass})); return 0; }
+      END_CODE
+
+      f.flush
+      `g++ #{Includes} #{src_filename} -o #{bin_filename}`
+      puts `./#{bin_filename}`
+      `rm -fr sizeof-*`
+    end
+  end
+end
+
+namespace :build do
+  Obj.zip(Src).each do |obj, src|
+    file obj => src do
+      mkdir_p "build"
+      sh "#{CXX} -c #{CXXFLAGS} #{Defines} #{Includes} -o #{obj} #{src}"
+    end
+  end
+
+  desc "Build 64bit openFrameworks shared library (#{SharedObject})"
+  task :shared => Obj do
+    sh "#{CXX} -shared #{CXXFLAGS} -o #{SharedObject} #{Obj.join ' '}"
+  end
+
+  desc "Clean up"
+  task :clean do
+    rm_rf "build"
+    rm "libof.so"
+  end
+end
