@@ -1,7 +1,7 @@
 CC = "gcc"
 CXX = "g++"
 # CXXFLAGS = "-arch i386 -g"
-CXXFLAGS = "-w -flat_namespace -undefined suppress"
+CXXFLAGS = "-w -flat_namespace -undefined suppress -fkeep-inline-functions"
 
 AddonsDir = "addons"
 LibsDir = "libs"
