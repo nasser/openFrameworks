@@ -55,6 +55,7 @@ namespace :show do
 end
 
 namespace :build do
+  # synthesize openframeworks source dependancies
   Obj.zip(Src).each do |obj, src|
     file obj => src do
       mkdir_p "build"
