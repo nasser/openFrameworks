@@ -3,6 +3,7 @@ CXX = "g++"
 # CXXFLAGS = "-arch i386 -g"
 CXXFLAGS = "-w -flat_namespace -undefined suppress"
 
+AddonsDir = "addons"
 LibsDir = "libs"
 BuildDir = "build"
 SharedObject = "libof.so"
@@ -19,6 +20,8 @@ Src = FileList["#{LibsDir}/**/*"].select { |f| f =~ /\.cpp$/ }.reject { |f| f =~
 Obj = Src.map { |src| "#{BuildDir}/#{File.basename(src).ext('o')}" }
 Frameworks = %w[OpenGL QTKit CoreAudio Carbon].map { |f| "-framework #{f} " }
 Libraries = FileList["#{LibsDir}/*/lib/osx/*"].select { |f| f =~ /\.a$/ }.reject { |f| f =~ /(openFrameworks)/}
+
+AddonsIncludes = FileList["#{AddonsDir}/**/*"].reject { |f| f =~ /\..*$/  }.map { |f| "-idirafter #{f}" }
 
 task :default => "build:shared"
 
@@ -64,9 +67,21 @@ namespace :build do
     sh "#{CXX} -shared #{CXXFLAGS} -o #{SharedObject} #{Obj.join ' '}"
   end
 
-  desc "Clean up"
+  desc "Build a 64bit openframeworks addon shared library"
+  task :addon, :name do |t, args|
+    name = args[:name]
+    sources = FileList["#{AddonsDir}/ofx#{name}/**/*"].select { |f| f =~ /\.cpp$/ }
+    
+    sh "#{CXX} -shared #{CXXFLAGS} #{AddonsIncludes} #{Includes} -o ofx#{name}.so #{sources.join ' '}"
+  end
+
+  desc "Clean #{BuildDir}/"
   task :clean do
     rm_rf "build"
-    rm "libof.so"
+  end
+
+  desc "Clean everything"
+  task :cleanall => :clean do
+    rm "*.so"
   end
 end
