@@ -65,12 +65,12 @@ namespace :build do
     end
   end
 
-  desc "Build 64bit openFrameworks shared library (#{SharedObject})"
+  desc "Build #{SharedObject}, 64bit OF shared library"
   task :shared => Obj do
     sh "#{CXX} -shared #{CXXFLAGS} -o #{SharedObject} #{Obj.join ' '}"
   end
 
-  desc "Build a 64bit openframeworks addon shared library"
+  desc "Build a 64bit OF addon shared library"
   task :addon, :name, :flags do |t, args|
     name = args[:name]
     flags = args[:flags]
@@ -79,7 +79,7 @@ namespace :build do
     sh "#{CXX} -shared #{CXXFLAGS} #{AddonsIncludes} #{Includes} #{flags} -o ofx#{name}.so #{sources.join ' '}"
   end
 
-  desc "Clean #{BuildDir}/"
+  desc "Clean #{BuildDir}/ directory"
   task :clean do
     rm_rf "build"
   end
