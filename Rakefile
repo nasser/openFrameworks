@@ -8,10 +8,10 @@ LibsDir = "libs"
 BuildDir = "build"
 SharedObject = "libof.so"
 
-SrcIgnore = /(gst|fmod|quicktime|qt|glut|systemutils|sound|video)/i
+SrcIgnore = /(gst|fmod|quicktime|glut|systemutils|sound)/i
 # ofSystemUtils uses deprecated 32bit calls
 
-Defines = "-DTARGET_OSX"
+Defines = "-DTARGET_OSX -DOF_VIDEO_CAPTURE_QTKIT -DOF_VIDEO_PLAYER_QTKIT"
 OpenFrameworksIncludeDirs = FileList["#{LibsDir}/openFrameworks/*"].reject { |d| d =~ /\./ } + ["#{LibsDir}/openFrameworks/"]
 LibraryIncludeDirs = FileList["#{LibsDir}/**/include/**/"]
 Includes = (OpenFrameworksIncludeDirs + LibraryIncludeDirs).map { |i| "-idirafter #{i}"}
