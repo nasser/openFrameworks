@@ -71,11 +71,12 @@ namespace :build do
   end
 
   desc "Build a 64bit openframeworks addon shared library"
-  task :addon, :name do |t, args|
+  task :addon, :name, :flags do |t, args|
     name = args[:name]
+    flags = args[:flags]
     sources = FileList["#{AddonsDir}/ofx#{name}/**/*"].select { |f| f =~ /\.cpp$/ }
     
-    sh "#{CXX} -shared #{CXXFLAGS} #{AddonsIncludes} #{Includes} -o ofx#{name}.so #{sources.join ' '}"
+    sh "#{CXX} -shared #{CXXFLAGS} #{AddonsIncludes} #{Includes} #{flags} -o ofx#{name}.so #{sources.join ' '}"
   end
 
   desc "Clean #{BuildDir}/"
