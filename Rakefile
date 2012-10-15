@@ -32,8 +32,9 @@ namespace :show do
   end
 
   desc "Measure size of class"
-  task :sizeof, :klass do |t, args|
+  task :sizeof, :klass, :header do |t, args|
     klass = args[:klass]
+    header = args[:header]
 
     bin_filename = "sizeof-#{klass.hash}"
     src_filename = "#{bin_filename}.cc"
@@ -41,13 +42,14 @@ namespace :show do
     File.open(src_filename, 'w') do |f|
       f.write <<-END_CODE
         #include "ofMain.h"
+        #{"#include \"" + header + "\"" if header}
         #include <stdio.h>
 
         int main(int argc, char** argv) { printf("%ld\\n", sizeof(#{klass})); return 0; }
       END_CODE
 
       f.flush
-      `g++ #{Includes} #{src_filename} -o #{bin_filename}`
+      `g++ #{Includes} #{AddonsIncludes} #{src_filename} -o #{bin_filename}`
       puts `./#{bin_filename}`
       `rm -fr sizeof-*`
     end
