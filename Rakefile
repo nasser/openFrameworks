@@ -8,7 +8,7 @@ LibsDir = "libs"
 BuildDir = "build"
 SharedObject = "libof.so"
 
-SrcIgnore = /(gst|fmod|quicktime|glut|systemutils|sound)/i
+SrcIgnore = /(gst|fmod|quicktime|systemutils|sound)/i
 # ofSystemUtils uses deprecated 32bit calls
 
 Defines = "-DTARGET_OSX -DOF_VIDEO_CAPTURE_QTKIT -DOF_VIDEO_PLAYER_QTKIT"
