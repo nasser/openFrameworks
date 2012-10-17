@@ -1,7 +1,7 @@
 CC = "gcc"
 CXX = "g++"
 # CXXFLAGS = "-arch i386 -g"
-CXXFLAGS = "-w -flat_namespace -undefined suppress -fkeep-inline-functions -ObjC++"
+CXXFLAGS = "-w -flat_namespace -undefined suppress -fkeep-inline-functions"
 
 AddonsDir = "addons"
 LibsDir = "libs"
@@ -16,9 +16,9 @@ OpenFrameworksIncludeDirs = FileList["#{LibsDir}/openFrameworks/*"].reject { |d|
 LibraryIncludeDirs = FileList["#{LibsDir}/**/include/**/"]
 Includes = (OpenFrameworksIncludeDirs + LibraryIncludeDirs).map { |i| "-idirafter #{i}"}
 
-Src = FileList["#{LibsDir}/**/*"].select { |f| f =~ /\.(cpp|mm)$/ }.reject { |f| f =~ SrcIgnore }
+Src = FileList["#{LibsDir}/**/*"].select { |f| f =~ /\.cpp$/ }.reject { |f| f =~ SrcIgnore }
 Obj = Src.map { |src| "#{BuildDir}/#{File.basename(src).ext('o')}" }
-Frameworks = %w[OpenGL QTKit CoreAudio Carbon Cocoa Quartz QTKit].map { |f| "-framework #{f} " }
+Frameworks = %w[OpenGL QTKit CoreAudio Carbon].map { |f| "-framework #{f} " }
 Libraries = FileList["#{LibsDir}/*/lib/osx/*"].select { |f| f =~ /\.a$/ }.reject { |f| f =~ /(openFrameworks)/}
 
 AddonsIncludes = FileList["#{AddonsDir}/**/*"].reject { |f| f =~ /\..*$/  }.map { |f| "-idirafter #{f}" }
@@ -61,7 +61,7 @@ namespace :build do
   Obj.zip(Src).each do |obj, src|
     file obj => src do
       mkdir_p "build"
-      sh "#{CXX} -c #{CXXFLAGS} #{Defines} #{Includes} #{Frameworks} -o #{obj} #{src}"
+      sh "#{CXX} -c #{CXXFLAGS} #{Defines} #{Includes} -o #{obj} #{src}"
     end
   end
 
