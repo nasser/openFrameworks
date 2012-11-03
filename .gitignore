@@ -82,3 +82,5 @@ Desktop.ini
 # Miscellaneous
 .mailmap
 
+# Zajal Specific Ignores
+.rbx
